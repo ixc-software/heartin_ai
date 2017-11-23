@@ -26,7 +26,7 @@ class neuralNetwork:
         self.activation_function = lambda x: scipy.special.expit(x)
         pass
     
-    #тренеровка нейронной сети
+    #тренировка нейронной сети
     def train(self, inputs_list, targets_list):
         #преобразовать список входных значений в двумерный массив
         inputs = numpy.array(inputs_list, ndmin=2).T
@@ -88,4 +88,58 @@ class neuralNetwork:
 
 
 class Training(neuralNetwork):
-    pass
+    
+    def __init__(self):
+        #запустить базовый конструктор сети 
+        neuralNetwork.__init__(self, 28*28, 50, 10, 0.3)
+
+        #коэффициент обучения 
+        self.lr = 0.3
+
+        #задать количество узлов во входном, скрытом и выходном слое
+        self.inodes = 28*28
+        self.hnodes = 500
+        self.onodes = 10
+        
+        #матрицы весовых коэффициентов связей wih и who.
+        self.wih = numpy.random.normal(0.0, pow(self.hnodes, -0.5), (self.hnodes, self.inodes))
+        self.who = numpy.random.normal(0.0, pow(self.onodes, -0.5), (self.onodes, self.hnodes))
+        
+        
+
+    #подготовка любой картнки, конвертация ее в массив numpy с размером 28х28 
+    def image_ready(self, path:"...\\image.PNG" = "String", type:" RGB or L" = "L", size:"pixel typle" =(28,28)):
+        """"will return data in format network needs"""
+
+        image = Image.open(path).convert(type).resize(size)
+        inverted_image = ImageOps.invert(image)
+        matplotlib.pyplot.imshow(inverted_image, cmap='Greys', interpolation = 'None')
+
+        #маштабировать и сместить входные значения в пределах от 0.01 - 1.00  (любое значение в пределах 255 / 255.0 * 0.99) + 0.01)
+        return ((numpy.asfarray(inverted_image.getdata())/ 255.0 * 0.99) + 0.01) # -> asfarray конвертирует массив в float
+
+
+    #перебрать все записи в тренировочном наборе
+    def training(self, path=r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\neuralNetwork\numbers\\"):
+        #начать обучение с стартовыми весами уже полученными ранее
+        
+        wih_file =  open("wih.json", 'r')
+        who_file =  open("who.json", 'r')
+
+        self.wih = numpy.array(json.load(wih_file))
+        self.who = numpy.array(json.load(who_file))
+
+
+        images = os.listdir(path)
+        shuffle(images)
+        for image in images:
+        
+            fullpath = path + image 
+            inputs = self.image_ready(fullpath)
+        
+            #создать целевые выходные значения(все равны 0,01 за исключением желаемого маркерного значения 0,99)
+            targets = numpy.zeros(self.onodes) + 0.01
+        
+            #целевое маркерное значение для данной записи
+            targets[int(re.findall("(.*)_.*", image)[0])] = 0.99
+            self.train(inputs, targets)
