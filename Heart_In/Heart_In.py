@@ -14,7 +14,7 @@ def normalized(array):
     return np.round(-(array / CONST_int32 * 0.99), decimals = 3)
 
 #считать с файла в numpy массив
-array = np.fromfile(path, dtype='i4', count=-1, sep='')[:2500]
+array = np.fromfile(path, dtype='i4', count=-1, sep='')
 
 #подменить "Nan" ноль
 array[np.isnan(array)] = 0   
@@ -28,14 +28,60 @@ y = y[y!=-0.078]
 
 
 #найти пики
-maxInd = argrelextrema(y, np.greater)
-R = y[maxInd]  # array([5, 3, 6])
+def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вернет пики с позициями(идексами)":
+    x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
+    
+    values_x = [0]
+    values_y = [0]
+    """  X Y 
+       [[5 4]
+        [4 3]
+        [3 2]
+        [2 1]
+        [1 0]]
+        """
+    for i in range(0, len(array), step):
+        y_max = max(array[i:i+step])
+        x_position = i + list(array[i:i+step]).index(y_max)
+        
+        
+        values_x += [x[x_position]]
+        values_y += [y_max]
+    
+    values_x +=[frequency*len(array)]
+    values_y +=[0]
+    return values_x, values_y
+
+def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вернет пики с позициями(идексами)":
+    x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
+    
+    values_x = [0]
+    values_y = [0]
+    """  X Y 
+       [[5 4]
+        [4 3]
+        [3 2]
+        [2 1]
+        [1 0]]
+        """
+    for i in range(0, len(array), step):
+        y_max = min(array[i:i+step])
+        x_position = i + list(array[i:i+step]).index(y_max)
+
+        values_x += [x[x_position]]
+        values_y += [y_max]
+    
+    values_x +=[frequency*len(array)]
+    values_y +=[0]
+    return values_x, values_y
+
 
 #создать массив с шагом 1024Hz
 x  = np.linspace(0, 1024*y.size, y.size,endpoint=False)
 
-# X массив длиной в количество элементов R
-xR = np.linspace(0, 1024*y.size, R.size,endpoint=False)
+# найти R пики с позициями по частоте
+R_max = maxValues(y, step = 5)
+R_min = minValues(y, step = 5)
 
 
 #склейка по глубине
@@ -48,7 +94,7 @@ y = np.array([4,3,2,1,0])
  [2 1]
  [1 0]]
  """
-X_train = np.dstack((x, y)).reshape(-1,2)
+X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
 
 
 #создать таблицу pandas:
@@ -68,7 +114,10 @@ frequency_dataframe = pd.DataFrame(X_train)
 #grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
 
 
+print(len(R_max[0]),len(R_max[1]))
+print(len(R_min[0]),len(R_min[1]))
 
-plt.plot(xR,R, color='r', marker ='*')
+plt.plot(R_max[0],R_max[1], color='r', marker ='*')
+plt.plot(R_min[0],R_min[1], color='g', marker ='*')
 plt.plot(x,y, color='b')
 plt.show()
