@@ -27,8 +27,8 @@ y = y[y!=0.0]
 y = y[y!=-0.078]
 
 
-#найти пики
-def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вернет пики с позициями(идексами)":
+#найти пики +
+def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(индексами)":
     x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
     
     values_x = [0]
@@ -41,8 +41,9 @@ def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вер
         [1 0]]
         """
     for i in range(0, len(array), step):
-        y_max = max(array[i:i+step])
-        x_position = i + list(array[i:i+step]).index(y_max)
+        buffer = list(array[i:i+step])
+        y_max = max(buffer)
+        x_position = i + buffer.index(y_max)
         
         
         values_x += [x[x_position]]
@@ -52,7 +53,8 @@ def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вер
     values_y +=[0]
     return values_x, values_y
 
-def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вернет пики с позициями(идексами)":
+#найти пики -
+def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(идексами)":
     x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
     
     values_x = [0]
@@ -65,26 +67,68 @@ def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вер
         [1 0]]
         """
     for i in range(0, len(array), step):
-        y_max = min(array[i:i+step])
-        x_position = i + list(array[i:i+step]).index(y_max)
+        buffer = list(array[i:i+step])
+        y_min = min(buffer)
+        x_position = i + buffer.index(y_min)
 
         values_x += [x[x_position]]
-        values_y += [y_max]
+        values_y += [y_min]
     
     values_x +=[frequency*len(array)]
     values_y +=[0]
     return values_x, values_y
 
 
-#создать массив с шагом 1024Hz
-x  = np.linspace(0, 1024*y.size, y.size,endpoint=False)
+#найти пики с условием поиска от начала пиков 
+def peakValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1024 ) -> "вернет пики с позициями(идексами)":
+    x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
+    
+    index = 0
+    values_x = [0]
+    values_y = [0]
+    """  X Y 
+       [[5 4]
+        [4 3]
+        [3 2]
+        [2 1]
+        [1 0]]
+        """
+    
+    while True:
+        if len(array[index:index+step]) < step//5:
+            break
+        buffer = list(array[index:index+step])
+        #находим максимум на отрезке
+        y_max = max(buffer)
+        #находим позицию максимума на отрезке
+        x_position = index + buffer.index(y_max)
+        #записываем максимум
+        values_y += [y_max]
+        #записываем позицию максимума
+        values_x += [x[x_position]]
+        
+
+        index = x_position + step//2
+
+
+    values_x +=[frequency*len(array)]
+    values_y +=[0]
+    return values_x, values_y
+
+
+
+
+#создать массив с шагом 1Hz
+x  = np.linspace(0, 1*y.size, y.size,endpoint=False)
 
 # найти R пики с позициями по частоте
-R_max = maxValues(y, step = 5)
-R_min = minValues(y, step = 5)
+#R_max = maxValues(y, step = 175)
+#R_min = minValues(y, step = 175)
+R_peak = peakValues(y, step = 200,  frequency = 1)
 
 
 #склейка по глубине
+#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
 """
 x = np.array([5,4,3,2,1])
 y = np.array([4,3,2,1,0])
@@ -94,10 +138,11 @@ y = np.array([4,3,2,1,0])
  [2 1]
  [1 0]]
  """
-X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
+
 
 
 #создать таблицу pandas:
+#frequency_dataframe = pd.DataFrame(X_train)
 """
             0      1
 _____________________
@@ -105,19 +150,17 @@ _____________________
 _____________________
 1      1024.0  0.008
 _____________________
-...
+
 """
-frequency_dataframe = pd.DataFrame(X_train)
+
 
 
 #создать матрицу рассеяния
 #grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
 
 
-print(len(R_max[0]),len(R_max[1]))
-print(len(R_min[0]),len(R_min[1]))
-
-plt.plot(R_max[0],R_max[1], color='r', marker ='*')
-plt.plot(R_min[0],R_min[1], color='g', marker ='*')
+plt.plot(R_peak[0],R_peak[1], color='r', marker ='*')
+#plt.plot(R_max[0],R_max[1], color='r', marker ='*')
+#plt.plot(R_min[0],R_min[1], color='g', marker ='*')
 plt.plot(x,y, color='b')
 plt.show()
