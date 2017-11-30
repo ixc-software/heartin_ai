@@ -128,27 +128,7 @@ def systole_generator(array:"list" = [], scale_values:"int" = 1, size:"int" = 0)
 
     return synthetic
 
-def animation(name:"\\..." = "video.mp4", fps:"int" = 15):
-    import matplotlib.animation as manimation
 
-    FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title='Movie Test', artist='Matplotlib', comment='Movie support!')
-    writer = FFMpegWriter(fps=fps, metadata=metadata)
-
-    fig = plt.figure()
-    l, = plt.plot([], [], 'k-o')
-
-    plt.xlim(-5, 5)
-    plt.ylim(-5, 5)
-
-    x0, y0 = 0, 0
-
-    with writer.saving(fig, name, 100):
-        for i in range(100):
-            x0 += 0.1 * np.random.randn()
-            y0 += 0.1 * np.random.randn()
-            l.set_data(x0, y0)
-            writer.grab_frame()
 
 #визуализация массива или нескольких массивов
 def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']):
@@ -205,7 +185,7 @@ _____________________
 #grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
 
 #загрузить масси кардиограммы
-path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
+path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
 #константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
 CONST_int32 = 2147483647
 #считать с файла в numpy массив
@@ -228,10 +208,33 @@ systoles = systole_separator(R_peak[0], y)
 
 
 
-buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size = 1000)
+buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size = 2)
 
-save(buffer)
 
+def animation(array:"list"=[], name:"\\..." = "video.mp4", fps:"int" = 512):
+    import matplotlib.animation as manimation
+
+    FFMpegWriter = manimation.writers['ffmpeg']
+    metadata = dict(title='Movie Test', artist='Matplotlib', comment='Movie support!')
+    writer = FFMpegWriter(fps=fps, metadata=metadata)
+
+    fig = plt.figure()
+    
+    l, = plt.plot([], [], color='b', marker ='*')
+    x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
+    
+    with writer.saving(fig, name, 200):
+        for n, y in enumerate(array):
+            plt.xlim(0+n, 512+n)
+            plt.ylim(-0.5, 0.5)
+
+            plt.plot(x[n:512+n], array[n:512+n], color='r', marker ='')
+            writer.grab_frame()
+
+
+
+animation(array = sum(buffer, []), name = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\video.mp4")
+
+#save(buffer)
 #render(y, R_peak[1])
-
 #render(sum(buffer, []))
