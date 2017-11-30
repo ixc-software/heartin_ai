@@ -1,6 +1,7 @@
 import numpy as np
 from math import factorial
 import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
 import pandas as pd
 from IPython.display import display
 plt.rc('font', family='Verdana')
@@ -212,15 +213,11 @@ buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size
 
 
 def animation(array:"list"=[], name:"\\..." = "video.mp4", fps:"int" = 512):
-    import matplotlib.animation as manimation
-
     FFMpegWriter = manimation.writers['ffmpeg']
     metadata = dict(title='Movie Test', artist='Matplotlib', comment='Movie support!')
     writer = FFMpegWriter(fps=fps, metadata=metadata)
 
     fig = plt.figure()
-    
-    l, = plt.plot([], [], color='b', marker ='*')
     x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
     
     with writer.saving(fig, name, 200):
@@ -233,7 +230,7 @@ def animation(array:"list"=[], name:"\\..." = "video.mp4", fps:"int" = 512):
 
 
 
-animation(array = sum(buffer, []), name = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\video.mp4")
+animation(array = sum(buffer, []))
 
 #save(buffer)
 #render(y, R_peak[1])
