@@ -10,9 +10,9 @@ from scipy.ndimage import zoom #делает скейл массива [0,1] -> 
 import random
 from itertools import combinations
 import json
-
-
-
+import sys, os
+import imageio
+import time
 
 #нормализовать данные в пределах (-1,1) пиковое значение будет 1
 def normalized(array):  
@@ -209,28 +209,46 @@ systoles = systole_separator(R_peak[0], y)
 
 
 
-buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size = 2)
+buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size = 100)
 
 
-def animation(array:"list"=[], name:"\\..." = "video.mp4", fps:"int" = 512):
-    FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title='Movie Test', artist='Matplotlib', comment='Movie support!')
-    writer = FFMpegWriter(fps=fps, metadata=metadata)
-
+def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_time:"second" = 100):
     fig = plt.figure()
     x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
     
-    with writer.saving(fig, name, 200):
+    #узнаем время запуска
+    start_time = time.time()
+    try:
         for n, y in enumerate(array):
+        
             plt.xlim(0+n, 512+n)
             plt.ylim(-0.5, 0.5)
-
             plt.plot(x[n:512+n], array[n:512+n], color='r', marker ='')
-            writer.grab_frame()
+        
+            fig.savefig(path + "image_{0:010}.png".format(n))
+
+            #узнаем текущие время 
+            current_time = time.time()
+            #если прошло больше секунд чем в переменной max_time, возбуждаем исключение
+            if current_time - start_time > max_time:
+                raise Exception("Time is over!")
+
+    except Exception as Error:
+        print(Error)
+
+    finally:
+        filenames  = [i for i in [path + i for i in os.listdir(path)] if i.endswith(".png")]
+
+        with imageio.get_writer(r"{}\image.gif".format(path), mode='I', fps=fps) as writer:
+            for filename in filenames:
+                image = imageio.imread(filename)
+                writer.append_data(image)
+
+        for image in filenames:
+            os.remove(image)
 
 
-
-animation(array = sum(buffer, []))
+animation(array = sum(buffer, []),max_time = 200, path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\sequences\\")
 
 #save(buffer)
 #render(y, R_peak[1])
