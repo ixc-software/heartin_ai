@@ -1,5 +1,5 @@
 import numpy as np
-from math import factorial
+from math import factorial, sqrt
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import pandas as pd
@@ -13,6 +13,8 @@ import json
 import sys, os
 import imageio
 import time
+import itertools
+
 
 #нормализовать данные в пределах (-1,1) пиковое значение будет 1
 def normalized(array):  
@@ -84,8 +86,8 @@ def peakValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1) -> "верн�
     return values_x, values_y
 
 
-#создает список, где на каждой позиции массив с одним сокращением, используй данные от "peakValues" - array[0]
-def systole_separator(position:"[position]"= [], data:"[data]"= [], size:'const' = 200) -> "вернет список, на каждой позиции сокращение":
+#создает список, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
+def systoles_separator(position:"[position]"= [], data:"[data]"= [], size:'const' = 200) -> "вернет список, на каждой позиции сокращение":
     systoles = []
     scale_x  = []
     try:
@@ -108,11 +110,12 @@ def systole_separator(position:"[position]"= [], data:"[data]"= [], size:'const'
         print()
         
     finally:
+        #возвращает список сокращений и их размеры [[сокращения,..][коэффициенты скейла,..]]
         return systoles, scale_x
 
     
 #генерирует массивы из сокращений указанной длины 
-def systole_generator(array:"list" = [], scale_values:"int" = 1, size:"int" = 0) -> "вернет одномерный массив сокращений":
+def systoles_generator(array:"list" = [], scale_values:"list" = [], size:"int" = 0) -> "вернет одномерный массив сокращений":
     cardiogram = []
     synthetic  = []
     for n,i in enumerate(array):
@@ -129,7 +132,47 @@ def systole_generator(array:"list" = [], scale_values:"int" = 1, size:"int" = 0)
 
     return synthetic
 
+#посчитать коэффициент корреляции Пирсона между двумя значениями
+def pearson_correlation(first, second) ->"вернет от -1 до 1, 1 - значит 100% сходство":
+    #количество элементов массива
+    array_len = len(first)
 
+    #вычислить сумму значений массива
+    first_sum  = sum(first)
+    second_sum = sum(second)
+       
+    #вычислить сумму квадратов массива
+    first_pow_sum  = sum([pow(i, 2) for i in  first])
+    second_pow_sum = sum([pow(i, 2) for i in second])
+
+    #вычислить сумму произведений 
+    first_second_product_sum = sum([i[0]*i[1] for i in zip(first, second)])
+
+    #вычислить коэффициент Пирсона
+    num = first_second_product_sum - (first_sum * second_sum/array_len)
+    den = sqrt((first_pow_sum - pow(first_sum, 2)/array_len)*(second_pow_sum - pow(second_sum, 2)/array_len))
+
+    if den == 0: return 0
+
+    correlation = num/den
+    return correlation
+
+#поделить все сокращения по типам используя коэффициент корреляции Пирсона
+def systoles_separator_by_types(systoles:"lists of systoles" = []):
+    systoles_types = {} 
+
+    for number, first in enumerate(systoles):
+        for second in systoles[:]:
+
+            sameness = pearson_correlation(first, second)
+            if sameness > 0.85:
+                if number not in systoles_types:
+                    systoles_types[number] = []
+
+                systoles_types[number]+= [second]
+                systoles.pop(0)
+
+    return systoles_types
 
 #визуализация массива или нескольких массивов
 def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']):
@@ -152,10 +195,52 @@ def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c
 
     plt.show()
 
-#сохранение массива
-def save(array:"list" = [], name:"name.json" = "cardiogram.json"):
-    with open(name, 'w') as cardiogram:
+#сохранение массива в формате json
+def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
+    with open(path, 'w') as cardiogram:
         json.dump(buffer, cardiogram)
+
+
+#создает GIF анимацию из массива
+def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_time:"second" = 100):
+    fig = plt.figure()
+    x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
+    
+    #узнаем время запуска
+    start_time = time.time()
+    try:
+        for n, y in enumerate(array):
+            #указать размер рамки по X
+            plt.xlim(0+n, 512+n)
+            #указать размер рамки по Y
+            plt.ylim(-0.5, 0.5)
+            #нарисовать массивы по (x, y) 
+            plt.plot(x[n:512+n], array[n:512+n], color='r', marker ='')
+        
+            fig.savefig(path + "image_{0:010}.png".format(n))
+
+            #узнаем текущие время 
+            current_time = time.time()
+            #если прошло больше секунд чем в переменной max_time, возбуждаем исключение
+            if current_time - start_time > max_time:
+                raise Exception("Time is over!")
+
+    except Exception as Error:
+        print(Error)
+
+    finally:
+        filenames  = [i for i in [path + i for i in os.listdir(path)] if i.endswith(".png")]
+
+        with imageio.get_writer(r"{}\image.gif".format(path), mode='I', fps=fps) as writer:
+            for filename in filenames:
+                image = imageio.imread(filename)
+                writer.append_data(image)
+
+        for image in filenames:
+            os.remove(image)
+        
+        #открывает папку с GIF
+        os.startfile(path)
 
 
 #склейка по глубине
@@ -190,7 +275,7 @@ path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\0a0ab63fe6bbf7ec785c62e
 #константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
 CONST_int32 = 2147483647
 #считать с файла в numpy массив
-array = np.fromfile(path, dtype='i4', count=-1, sep='')[15000:50000]
+array = np.fromfile(path, dtype='i4', count=-1, sep='')
 #подменить "Nan" ноль
 array[np.isnan(array)] = 0   
 
@@ -204,52 +289,34 @@ y = y[y!=-0.078]
 # найти R пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
 R_peak = peakValues(y, step = 190,  frequency = 1)
 
-#разбить массив на куски по сокращениям используя данный от "peakValues" - array[0]  
-systoles = systole_separator(R_peak[0], y)
+#разбить массив на куски по сокращениям используя данные от "peakValues" - array[0]  
+systoles = systoles_separator(R_peak[0], y)
 
 
 
-buffer = systole_generator(array = systoles[0], scale_values = systoles[1], size = 100)
 
-
-def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_time:"second" = 100):
-    fig = plt.figure()
-    x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
     
-    #узнаем время запуска
-    start_time = time.time()
-    try:
-        for n, y in enumerate(array):
+
+#возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
+systoles_by_types = systoles_separator_by_types(systoles[0])  
         
-            plt.xlim(0+n, 512+n)
-            plt.ylim(-0.5, 0.5)
-            plt.plot(x[n:512+n], array[n:512+n], color='r', marker ='')
-        
-            fig.savefig(path + "image_{0:010}.png".format(n))
+print(systoles_by_types.keys())
 
-            #узнаем текущие время 
-            current_time = time.time()
-            #если прошло больше секунд чем в переменной max_time, возбуждаем исключение
-            if current_time - start_time > max_time:
-                raise Exception("Time is over!")
-
-    except Exception as Error:
-        print(Error)
-
-    finally:
-        filenames  = [i for i in [path + i for i in os.listdir(path)] if i.endswith(".png")]
-
-        with imageio.get_writer(r"{}\image.gif".format(path), mode='I', fps=fps) as writer:
-            for filename in filenames:
-                image = imageio.imread(filename)
-                writer.append_data(image)
-
-        for image in filenames:
-            os.remove(image)
+render(list(itertools.chain.from_iterable(systoles_by_types[6])))
 
 
-animation(array = sum(buffer, []),max_time = 200, path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\sequences\\")
+#создает массив сокращений, смешивая их, создавая уникальные новые сокращения, возвращая их разные длины 
+#buffer = systoles_generator(array = systoles[0], scale_values = systoles[1], size = 100)
 
-#save(buffer)
-#render(y, R_peak[1])
+#создать GIF анимацию из массива
+#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
+
+#save_json(buffer)
+#загрузить массив из json и вернуть в виде list()
+def load_json(path:"\\..." = "cardiogram.json"):
+    pass
+
+
+
+
 #render(sum(buffer, []))
