@@ -31,8 +31,7 @@ def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
         buffer = list(array[i:i+step])
         y_max = max(buffer)
         x_position = i + buffer.index(y_max)
-        
-        
+           
         values_x += [x[x_position]]
         values_y += [y_max]
     
@@ -60,18 +59,18 @@ def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
     return values_x, values_y
 
 
-#найти пики с условием поиска от начала пиков, возвращает пики, а так же разметку values_x, values_y
-def peakValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1) -> "вернет пики с позициями(идексами)":
-    x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
+#найти пики с условием поиска от начала пиков, возвращает пики, разметку values_x, values_y
+def peakValues(cardiogram:"list"= [], step:"int"= 190, frequency:'Hz'= 1) -> "вернет пики с позициями(идексами)":
+    x  = np.linspace(0, frequency*len(cardiogram), len(cardiogram), endpoint=False)
      
     index = 0
     values_x = []
     values_y = []
     
     while True:
-        if len(array[index:index+step]) < step//5:
+        if len(cardiogram[index:index+step]) < step//5:
             break
-        buffer = list(array[index:index+step])
+        buffer = list(cardiogram[index:index+step])
         #находим максимум на отрезке
         y_max = max(buffer)
         #находим позицию максимума на отрезке
@@ -85,52 +84,6 @@ def peakValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1) -> "верн�
         
     return values_x, values_y
 
-
-#создает список, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
-def systoles_separator(position:"[position]"= [], data:"[data]"= [], size:'const' = 200) -> "вернет список, на каждой позиции сокращение":
-    systoles = []
-    scale_x  = []
-    try:
-        for n,i in enumerate(position):
-
-            startIndex = int(position[n])
-            endIndex   = int(position[n + 1])
-            
-            buffer = list(data[startIndex:endIndex])
-            #считаем коэффициент скейла в процентах, на 100 не умножаем что бы получить коэффициент для умножения
-            buffer_scale = (size/len(buffer))
-            #втискиваем массив в 200 позиций
-            buffer = zoom(buffer, buffer_scale)
-            #добавляем сокращение в общий массив
-            systoles.append(buffer)
-            #добавляем коэффициент скейла сокращения
-            scale_x.append(buffer_scale)
-            
-    except IndexError:
-        print()
-        
-    finally:
-        #возвращает список сокращений и их размеры [[сокращения,..][коэффициенты скейла,..]]
-        return systoles, scale_x
-
-    
-#генерирует массивы из сокращений указанной длины 
-def systoles_generator(array:"list" = [], scale_values:"list" = [], size:"int" = 0) -> "вернет одномерный массив сокращений":
-    cardiogram = []
-    synthetic  = []
-    for n,i in enumerate(array):
-        scale   = scale_values[n]
-        systole = array[n]
-        systole_scaled = zoom(systole, scale).tolist()
-        cardiogram.append(systole_scaled)
-      
-    for i in range(size):
-        scale   = float(*random.choices(scale_values))
-        systole = np.mean(np.array([ random.choices(array), random.choices(array) ]), axis=0 ).tolist()
-        systole_scaled = zoom(systole, scale).tolist()
-        synthetic+= systole_scaled
-
-    return synthetic
 
 #посчитать коэффициент корреляции Пирсона между двумя значениями
 def pearson_correlation(first, second) ->"вернет от -1 до 1, 1 - значит 100% сходство":
@@ -270,6 +223,54 @@ _____________________
 #создать матрицу рассеяния
 #grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
 
+#генерирует массивы из сокращений указанной длины 
+def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
+    original   = []
+    synthetic  = []
+
+    #возвращает массиву сокращений исходный скейл для каждого, приводит к оригинальному виду
+    for n,i in enumerate(cardiogram):
+        scale   = lengths[n]
+        systole = [cardiogram[n]]
+        systole_scaled = zoom(systole, scale).tolist()
+        original+= systole_scaled
+    
+    #создает синтетический набор сокращений скрещенный случайным образом друг с другом
+    for i in range(size):
+        #взять случайный коэффициент скейла для сокращения из общего массива
+        scale   = float(*random.choices(lengths))
+        #получить сокращение созданное из двух случайно выбранных, на выходе среднее значение между ними 
+        systole = np.mean(np.array([ random.choices(cardiogram), random.choices(cardiogram) ]), axis=0 ).tolist()
+        #возвращает исходную длину для сокращения
+        systole_scaled = zoom(systole, scale).tolist()
+        synthetic+= systole_scaled
+    
+    return {"synthetic":synthetic, "original":original}
+
+#создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
+def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], size:'const' = 200) -> "вернет словарь":
+    systoles = []
+    lengths  = []
+
+    for n,i in enumerate(offcuts[:-1]):
+
+        startIndex = int(offcuts[n])
+        endIndex   = int(offcuts[n + 1])
+
+        buffer = list(cardiogram[startIndex:endIndex])
+        #считаем коэффициент скейла в процентах, на 100 не умножаем что бы получить коэффициент для умножения
+        buffer_lengths = (size/len(buffer))
+        #втискиваем массив в 200 позиций
+        buffer = zoom(buffer, buffer_lengths).tolist()
+        #добавляем сокращение в общий массив
+        systoles.append(buffer)
+        #добавляем коэффициент скейла сокращения
+        lengths.append(buffer_lengths)
+    
+    #возвращает словарь сокращений и их размеры [[сокращения,..][коэффициенты скейла,..]]
+    return {"systoles":systoles, "lengths":lengths}
+
+
 #загрузить масси кардиограммы
 path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
 #константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
@@ -287,36 +288,26 @@ y = y[y!=0.0]
 y = y[y!=-0.078]
 
 # найти R пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-R_peak = peakValues(y, step = 190,  frequency = 1)
+R_peak = peakValues(cardiogram = y)
 
-#разбить массив на куски по сокращениям используя данные от "peakValues" - array[0]  
-systoles = systoles_separator(R_peak[0], y)
+#разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
+cardiogram = systoles_separator(offcuts = R_peak[0], cardiogram = y, size = 200)
 
-
-
-
-    
 
 #возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-systoles_by_types = systoles_separator_by_types(systoles[0])  
-        
+systoles_by_types = systoles_separator_by_types(cardiogram["systoles"])  
 print(systoles_by_types.keys())
 
-render(list(itertools.chain.from_iterable(systoles_by_types[6])))
+#создает массив сокращений, смешивая их, создавая уникальные новые сокращения, возвращая их исходные разные длины 
+buffer = systoles_generator(cardiogram = cardiogram["systoles"], lengths = cardiogram["lengths"], size = 100)
 
 
-#создает массив сокращений, смешивая их, создавая уникальные новые сокращения, возвращая их разные длины 
-#buffer = systoles_generator(array = systoles[0], scale_values = systoles[1], size = 100)
-
+render(sum(systoles_by_types[0],[]))
 #создать GIF анимацию из массива
 #animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
 
 #save_json(buffer)
+
 #загрузить массив из json и вернуть в виде list()
 def load_json(path:"\\..." = "cardiogram.json"):
     pass
-
-
-
-
-#render(sum(buffer, []))
