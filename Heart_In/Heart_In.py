@@ -110,22 +110,6 @@ def pearson_correlation(first, second) ->"вернет от -1 до 1, 1 - зн�
     correlation = num/den
     return correlation
 
-#поделить все сокращения по типам используя коэффициент корреляции Пирсона
-def systoles_separator_by_types(systoles:"lists of systoles" = []):
-    systoles_types = {} 
-
-    for number, first in enumerate(systoles):
-        for second in systoles[:]:
-
-            sameness = pearson_correlation(first, second)
-            if sameness > 0.85:
-                if number not in systoles_types:
-                    systoles_types[number] = []
-
-                systoles_types[number]+= [second]
-                systoles.pop(0)
-
-    return systoles_types
 
 #визуализация массива или нескольких массивов
 def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']):
@@ -225,6 +209,8 @@ _____________________
 
 #генерирует массивы из сокращений указанной длины 
 def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
+    assert (type(size) == int), "(from systoles_generator)size should be INT, but - {}".format(size)
+
     original   = []
     synthetic  = []
 
@@ -248,7 +234,8 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
     return {"synthetic":synthetic, "original":original}
 
 #создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
-def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], size:'const' = 200) -> "вернет словарь":
+def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const' = 200) -> "вернет словарь":
+    assert (type(length) == int), "(from systoles_separator)size should be INT, but - {}".format(size)
     systoles = []
     lengths  = []
 
@@ -259,7 +246,7 @@ def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], size:'const' =
 
         buffer = list(cardiogram[startIndex:endIndex])
         #считаем коэффициент скейла в процентах, на 100 не умножаем что бы получить коэффициент для умножения
-        buffer_lengths = (size/len(buffer))
+        buffer_lengths = (length/len(buffer))
         #втискиваем массив в 200 позиций
         buffer = zoom(buffer, buffer_lengths).tolist()
         #добавляем сокращение в общий массив
@@ -271,8 +258,38 @@ def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], size:'const' =
     return {"systoles":systoles, "lengths":lengths}
 
 
+#поделить все сокращения по типам используя коэффициент корреляции Пирсона
+def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list" = []):
+    #создаем словарь, в который будем добавлять ключ - тип, на каждый ключ стисок подобных сокрщений
+    types = {} 
+    
+    #проходимся по общему списку запоминая позицию
+    for name, first in enumerate(systoles):
+        #проходимся по общему списку и параллельно по длинам сокращенийб начиная с 2го значения
+        for second, length in zip(systoles[1:], lengths[1:]):
+            
+            #находим коэффициент подобия между первым и вторым, третим.., сокрщением
+            sameness = pearson_correlation(first, second)
+            #если коэффициент подобия больше чем 0.85
+            if sameness > 0.85:
+                #создаем имена ключей для сокращений и длин
+                systoles_type   = "type_{}".format(name)
+                systoles_length = "length_{}".format(name)
+                #если ключ типа не существует, создаем новый тип в словаре, создаем длины типов
+                if systoles_type not in types:
+                    types[systoles_type]  = []
+                    types[systoles_length]= []
+                #добавляем сокращение в словарь, ключ(name) с таким же типом 
+                types[systoles_type]  += [second]
+                #добавляем длину сокращения
+                types[systoles_length]+= [length]
+                #удалить из списка сокращений сокращение которое добавили в словарь по типу
+                systoles.remove(second)
+
+    return types
+
 #загрузить масси кардиограммы
-path = r"C:\Users\oleks\Source\Repos\heartin_ai\Heart_In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
+path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
 #константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
 CONST_int32 = 2147483647
 #считать с файла в numpy массив
@@ -291,18 +308,16 @@ y = y[y!=-0.078]
 R_peak = peakValues(cardiogram = y)
 
 #разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-cardiogram = systoles_separator(offcuts = R_peak[0], cardiogram = y, size = 200)
+cardiogram = systoles_separator(offcuts = R_peak[0], cardiogram = y, length = 200)
 
 
 #возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-systoles_by_types = systoles_separator_by_types(cardiogram["systoles"])  
-print(systoles_by_types.keys())
-
-#создает массив сокращений, смешивая их, создавая уникальные новые сокращения, возвращая их исходные разные длины 
-buffer = systoles_generator(cardiogram = cardiogram["systoles"], lengths = cardiogram["lengths"], size = 100)
+systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
 
 
-render(sum(systoles_by_types[0],[]))
+buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 5)
+
+render(sum(buffer01["synthetic"],[]))
 #создать GIF анимацию из массива
 #animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
 
