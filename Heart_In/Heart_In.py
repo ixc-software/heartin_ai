@@ -20,6 +20,7 @@ import itertools
 def normalized(array):  
     return np.round(-(array / CONST_int32 * 0.99), decimals = 3)
 
+
 #найти пики +
 def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(индексами)":
     x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
@@ -38,6 +39,7 @@ def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
     values_x +=[frequency*len(array)]
     values_y +=[0]
     return values_x, values_y
+
 
 #найти пики -
 def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(идексами)":
@@ -132,11 +134,6 @@ def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c
 
     plt.show()
 
-#сохранение массива в формате json
-def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
-    with open(path, 'w') as cardiogram:
-        json.dump(buffer, cardiogram)
-
 
 #создает GIF анимацию из массива
 def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_time:"second" = 100):
@@ -179,72 +176,32 @@ def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_t
         #открывает папку с GIF
         os.startfile(path)
 
+        
+#загрузить json
+def load_json(path:"\\..." = "cardiogram.json"):
+    with open(path) as json_data:
+        return json.load(json_data)
 
-#склейка по глубине
-#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
-"""
-x = np.array([5,4,3,2,1])
-y = np.array([4,3,2,1,0])
-[[5 4]
- [4 3]
- [3 2]
- [2 1]
- [1 0]]
- """
-
-
-#создать таблицу pandas:
-#frequency_dataframe = pd.DataFrame(X_train)
-"""
-            0      1
-_____________________
-0         0.0 -0.004
-_____________________
-1      1024.0  0.008
-_____________________
-"""
-
-#создать матрицу рассеяния
-#grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
-
-#генерирует массивы из сокращений указанной длины 
-def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
-    assert (type(size) == int), "(from systoles_generator)size should be INT, but - {}".format(size)
-
-    original   = []
-    synthetic  = []
-
-    #возвращает массиву сокращений исходный скейл для каждого, приводит к оригинальному виду
-    for n,i in enumerate(cardiogram):
-        scale   = lengths[n]
-        systole = [cardiogram[n]]
-        systole_scaled = zoom(systole, scale).tolist()
-        original+= systole_scaled
     
-    #создает синтетический набор сокращений скрещенный случайным образом друг с другом
-    for i in range(size):
-        #взять случайный коэффициент скейла для сокращения из общего массива
-        scale   = float(*random.choices(lengths))
-        #получить сокращение созданное из двух случайно выбранных, на выходе среднее значение между ними 
-        systole = np.mean(np.array([ random.choices(cardiogram), random.choices(cardiogram) ]), axis=0 ).tolist()
-        #возвращает исходную длину для сокращения
-        systole_scaled = zoom(systole, scale).tolist()
-        synthetic+= systole_scaled
-    
-    return {"synthetic":synthetic, "original":original}
+#сохранение массива в формате json
+def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
+    with open(path, 'w') as cardiogram:
+        json.dump(array, cardiogram)
+
+        
 
 #создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
 def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const' = 200) -> "вернет словарь":
     assert (type(length) == int), "(from systoles_separator)size should be INT, but - {}".format(size)
     systoles = []
     lengths  = []
-
     for n,i in enumerate(offcuts[:-1]):
 
         startIndex = int(offcuts[n])
         endIndex   = int(offcuts[n + 1])
-
+        
         buffer = list(cardiogram[startIndex:endIndex])
+            
         #считаем коэффициент скейла в процентах, на 100 не умножаем что бы получить коэффициент для умножения
         buffer_lengths = (length/len(buffer))
         #втискиваем массив в 200 позиций
@@ -283,13 +240,43 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
                 types[systoles_type]  += [second]
                 #добавляем длину сокращения
                 types[systoles_length]+= [length]
-                #удалить из списка сокращений сокращение которое добавили в словарь по типу
+                #удалить из списка сокращений которое добавили в словарь по типу
                 systoles.remove(second)
 
     return types
 
+
+#создать GIF анимацию из массива
+#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
+#склейка по глубине
+#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
+"""
+x = np.array([5,4,3,2,1])
+y = np.array([4,3,2,1,0])
+[[5 4]
+ [4 3]
+ [3 2]
+ [2 1]
+ [1 0]]
+ """
+
+#создать таблицу pandas:
+#frequency_dataframe = pd.DataFrame(X_train)
+"""
+            0      1
+_____________________
+0         0.0 -0.004
+_____________________
+1      1024.0  0.008
+_____________________
+"""
+
+#создать матрицу рассеяния
+#grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
+
+
 #загрузить масси кардиограммы
-path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
+path = r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
 #константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
 CONST_int32 = 2147483647
 #считать с файла в numpy массив
@@ -301,28 +288,76 @@ array[np.isnan(array)] = 0
 y = normalized(array)
 
 #удалить значения шума
-y = y[y!=0.0]
+y = y[y!=   0.0]
 y = y[y!=-0.078]
 
-# найти R пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-R_peak = peakValues(cardiogram = y)
+
+#генерирует массивы из сокращений указанной длины 
+def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
+    assert (type(size) == int), "(from systoles_generator)size should be INT, but - {}".format(size)
+
+    original   = []
+    synthetic  = []
+
+    #возвращает массиву сокращений исходный скейл для каждого, приводит к оригинальному виду
+    for n,i in enumerate(cardiogram):
+        scale   = lengths[n]
+        systole = [cardiogram[n]]
+        systole_scaled = zoom(systole, scale).tolist()
+        original+= systole_scaled
+    
+    
+    #создает синтетический набор сокращений скрещенный случайным образом друг с другом
+    for i in range(size): 
+        #взять случайный коэффициент скейла для сокращения из общего массива
+        scale   = float(*random.choices(lengths))
+        #получить сокращение созданное из двух случайно выбранных, на выходе среднее значение между ними 
+        systole = np.mean(np.array([ random.choices(cardiogram), random.choices(cardiogram) ]), axis=0 ).tolist()
+        
+        #возвращает исходную длину для сокращения
+        systole_scaled = zoom(systole, scale).tolist()
+        
+
+        #фильтрует неправильно обрезанные пики, потенциально может попасть, правильная аномалия(например жел. экстрасистола)
+        if   max(systole_scaled[0][-5:-1]) > systole_scaled[0][-1]: 
+            systole_scaled = [systole_scaled[0][:-5]]
+            #render(*systole_scaled)
+            
+        elif max(systole_scaled[0][1:5]) > systole_scaled[0][0]:
+            systole_scaled = [systole_scaled[0][5:]]
+            #render(*systole_scaled)
+        
+        elif max(systole_scaled[0][1:5]) > systole_scaled[0][1] and max(systole_scaled[0][-5:-1]) > systole_scaled[0][-1]:
+            systole_scaled = [systole_scaled[0][5:-5]]
+            #render(*systole_scaled)
+            
+        synthetic+= systole_scaled
+
+    return {"synthetic":synthetic, "original":original}
+
+
+#скачивает с сервера определенное количество кардиограмм, определенных размеров
+def downloader(url:"string"=""):
+    pass
+
+
+
+
+
+
+#найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
+systoles_peak = peakValues(cardiogram = y)
 
 #разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-cardiogram = systoles_separator(offcuts = R_peak[0], cardiogram = y, length = 200)
-
+cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
 
 #возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
 systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
 
 
-buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 5)
+buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 100)
+save_json(buffer01["synthetic"], path = r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\cardiogram.json")
+json_cardiogram = load_json(r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\cardiogram.json")
 
-render(sum(buffer01["synthetic"],[]))
-#создать GIF анимацию из массива
-#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
 
-#save_json(buffer)
-
-#загрузить массив из json и вернуть в виде list()
-def load_json(path:"\\..." = "cardiogram.json"):
-    pass
+render(*json_cardiogram)
