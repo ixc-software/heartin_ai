@@ -14,6 +14,8 @@ import sys, os
 import imageio
 import time
 import itertools
+import requests
+import threading
 
 
 #нормализовать данные в пределах (-1,1) пиковое значение будет 1
@@ -246,52 +248,6 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
     return types
 
 
-#создать GIF анимацию из массива
-#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
-#склейка по глубине
-#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
-"""
-x = np.array([5,4,3,2,1])
-y = np.array([4,3,2,1,0])
-[[5 4]
- [4 3]
- [3 2]
- [2 1]
- [1 0]]
- """
-
-#создать таблицу pandas:
-#frequency_dataframe = pd.DataFrame(X_train)
-"""
-            0      1
-_____________________
-0         0.0 -0.004
-_____________________
-1      1024.0  0.008
-_____________________
-"""
-
-#создать матрицу рассеяния
-#grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
-
-
-#загрузить масси кардиограммы
-path = r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\0a0ab63fe6bbf7ec785c62eef3c6d654.jpg"
-#константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
-CONST_int32 = 2147483647
-#считать с файла в numpy массив
-array = np.fromfile(path, dtype='i4', count=-1, sep='')
-#подменить "Nan" ноль
-array[np.isnan(array)] = 0   
-
-#нормализовать значения в пределах [-1,1]
-y = normalized(array)
-
-#удалить значения шума
-y = y[y!=   0.0]
-y = y[y!=-0.078]
-
-
 #генерирует массивы из сокращений указанной длины 
 def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
     assert (type(size) == int), "(from systoles_generator)size should be INT, but - {}".format(size)
@@ -335,29 +291,102 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
 
     return {"synthetic":synthetic, "original":original}
 
+#скачивает с сервера определенное количество кардиограмм, определенных размеров
+def downloader(url:"string"= r"https://", list_uploads:"links list" = str(), save_path:"string" = r"binary", from_size:"int" = 300000):
+    
+    #функция скачивания по ссылке и хешу
+    def threading_requests(links, names):
+                response = requests.get(link, stream=True, verify=False)
+                with open(os.path.join(save_path,name), 'wb') as f:
+                    f.write(response.content)
+
+                del response
+
+    #подготавливает ссылки и хеш именаб для функции скачивания 
+    links  = []
+    names  = []
+    with open(list_uploads, "r") as f:
+        
+        for line in f:
+            info = line.split()[-5:]
+            data_size = info[0 ]
+            data_hash = info[-1]
+            if int(data_size) > from_size:
+                links.append(os.path.join(url,data_hash))
+                names.append(data_hash)
+               
+        for link, name in zip(links, names):
+            print(link)
+            #запуск потока на скачивание
+            threading.Thread(target=lambda: threading_requests(links, names)).start()
+
 
 #скачивает с сервера определенное количество кардиограмм, определенных размеров
-def downloader(url:"string"=""):
-    pass
+downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
+           list_uploads = r"list_uploads",
+              save_path = r"binary",
+              from_size = 300000)
+
+
+##загрузить масси кардиограммы
+#path = os.path.join("binary", os.listdir(r"binary")[0])
+##константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
+#CONST_int32 = 2147483647
+##считать с файла в numpy массив
+#array = np.fromfile(path, dtype='i4', count=-1, sep='')
+##подменить "Nan" ноль
+#array[np.isnan(array)] = 0   
+
+##нормализовать значения в пределах [-1,1]
+#y = normalized(array)
+
+##удалить значения шума
+#y = y[y!=   0.0]
+#y = y[y!=-0.078]
+
+##найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
+#systoles_peak = peakValues(cardiogram = y)
+
+##разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
+#cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
+
+##возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
+#systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
+
+
+#buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 100)
+#save_json(buffer01["synthetic"], path = r"cardiogram.json")
+#json_cardiogram = load_json(r"cardiogram.json")
+#render(*json_cardiogram)
 
 
 
 
+                    
+#создать GIF анимацию из массива
+#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
+#склейка по глубине
+#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
+"""
+x = np.array([5,4,3,2,1])
+y = np.array([4,3,2,1,0])
+[[5 4]
+ [4 3]
+ [3 2]
+ [2 1]
+ [1 0]]
+ """
 
+#создать таблицу pandas:
+#frequency_dataframe = pd.DataFrame(X_train)
+"""
+            0      1
+_____________________
+0         0.0 -0.004
+_____________________
+1      1024.0  0.008
+_____________________
+"""
 
-#найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-systoles_peak = peakValues(cardiogram = y)
-
-#разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
-
-#возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
-
-
-buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 100)
-save_json(buffer01["synthetic"], path = r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\cardiogram.json")
-json_cardiogram = load_json(r"C:\Users\oleks\Source\Repos\neuralNetworkource\Heart-In\cardiogram.json")
-
-
-render(*json_cardiogram)
+#создать матрицу рассеяния
+#grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
