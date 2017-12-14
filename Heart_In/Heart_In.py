@@ -321,43 +321,63 @@ def downloader(url:"string"= r"https://", list_uploads:"links list" = str(), sav
             threading.Thread(target=lambda: threading_requests(links, names)).start()
 
 
-#скачивает с сервера определенное количество кардиограмм, определенных размеров
-downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
-           list_uploads = r"list_uploads",
-              save_path = r"binary",
-              from_size = 300000)
+##скачивает с сервера определенное количество кардиограмм, определенных размеров
+#downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
+#           list_uploads = r"list_uploads",
+#              save_path = r"binary",
+#              from_size = 1000000)
 
 
-##загрузить масси кардиограммы
-#path = os.path.join("binary", os.listdir(r"binary")[0])
-##константное число, тип чисел в массиве, надо знать для конвертации, так как он в бинарный
-#CONST_int32 = 2147483647
-##считать с файла в numpy массив
-#array = np.fromfile(path, dtype='i4', count=-1, sep='')
-##подменить "Nan" ноль
-#array[np.isnan(array)] = 0   
+#загрузить масси кардиограммы
+files = [os.path.join("binary", name) for name in os.listdir(r"binary")][0]
+#константное число, тип чисел в массиве, надо знать для конвертации, так как он бинарный
+CONST_int32 = 2147483647
+#считать с файла в numpy массив
+array = np.fromfile(files, dtype='i4', count=-1, sep='')
+#подменить "Nan" ноль
+array[np.isnan(array)] = 0   
 
-##нормализовать значения в пределах [-1,1]
-#y = normalized(array)
+#нормализовать значения в пределах [-1,1]
+y = normalized(array)
 
-##удалить значения шума
-#y = y[y!=   0.0]
-#y = y[y!=-0.078]
+#удалить значения шума
+y = y[y!=   0.0]
+y = y[y!=-0.078]
 
-##найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-#systoles_peak = peakValues(cardiogram = y)
+#найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
+systoles_peak = peakValues(cardiogram = y)
 
-##разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-#cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
+#разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
+cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
 
-##возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-#systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
+#возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
+systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
 
 
-#buffer01 = systoles_generator(cardiogram = systoles_by_types["type_6"], lengths = systoles_by_types["length_6"], size = 100)
-#save_json(buffer01["synthetic"], path = r"cardiogram.json")
-#json_cardiogram = load_json(r"cardiogram.json")
-#render(*json_cardiogram)
+def get_longest_list_name(arrays:"dict" = {}):
+    assert(type(arrays)== dict), "from 'get_longest_list_name' - you should use dict, not {}".format(type(arrays))
+    
+    longest_count = 0
+    longest_name  = ""
+    for name in arrays:
+        array_len = len(arrays[name])
+        if array_len > longest_count:
+            longest_count= array_len
+            longest_name = name
+              
+    longest_name_lengths = "length_" + longest_name.split("_")[1]
+    
+    return longest_name, longest_name_lengths
+    
+
+
+
+
+buffer01 = systoles_generator(cardiogram = systoles_by_types[get_longest_list_name(systoles_by_types)[0]], 
+                              lengths = systoles_by_types[get_longest_list_name(systoles_by_types)[1]], size = 100)
+save_json(buffer01["original"], path = r"cardiogram.json")
+json_cardiogram = load_json(r"cardiogram.json")
+render(sum(json_cardiogram, []))
 
 
 
