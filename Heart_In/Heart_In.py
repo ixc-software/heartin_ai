@@ -16,11 +16,19 @@ import time
 import itertools
 import requests
 import threading
+from multiprocessing import Pool, Process
 
+
+def timer(func):
+    def wrapper(*args):
+        startTime = time.time()
+        func(*args)
+        endTime   = time.time()
+        print("func - {}, lead time :{} sec.".format(func.__name__, endTime - startTime))
+    return wrapper
 
 #нормализовать данные в пределах (-1,1) пиковое значение будет 1
 def normalized(array):
-    print("function 'normalized' in progress ")
     #константное число, тип чисел в массиве
     CONST_int32 = 2147483647
     return np.round(-(array / CONST_int32 * 0.99), decimals = 3)
@@ -28,7 +36,7 @@ def normalized(array):
 
 #найти пики +
 def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(индексами)":
-    print("function 'maxValues' in progress ")
+    print("function 'maxValues' in progress \n")
     x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
     
     values_x = [0]
@@ -49,7 +57,7 @@ def maxValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
 
 #найти пики -
 def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "вернет пики с позициями(идексами)":
-    print("function 'minValues' in progress ")
+    print("function 'minValues' in progress \n")
     x  = np.linspace(0, frequency*len(array), len(array), endpoint=False)
     
     values_x = [0]
@@ -70,7 +78,7 @@ def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
 
 #найти пики с условием поиска от начала пиков, возвращает пики, разметку values_x, values_y
 def peakValues(cardiogram:"list"= [], step:"int"= 185, frequency:'Hz'= 1) -> "вернет пики с позициями(идексами)":
-    print("function 'peakValues' in progress ")
+    print("function 'peakValues' in progress \n")
     x  = np.linspace(0, frequency*len(cardiogram), len(cardiogram), endpoint=False)
      
     index = 0
@@ -123,7 +131,7 @@ def pearson_correlation(first, second) ->"вернет от -1 до 1, 1 - зн�
 
 #визуализация массива или несколько массивов
 def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']):
-    print("function 'render' in progress ")
+    print("function 'render' in progress \n")
     #возвращает цвета из массива colors, когда кончатся стандартные цвета, будет генерировать случайные
     def get_color():
         for color in colors:
@@ -146,7 +154,7 @@ def render(*array:"lists of array", frequency:'Hz'= 1, colors=['b', 'g', 'r', 'c
 
 #создает GIF анимацию из массива
 def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_time:"second" = 100):
-    print("function 'animation' in progress ")
+    print("function 'animation' in progress \n")
     fig = plt.figure()
     x  = np.linspace(0, 1*len(array), len(array), endpoint=False)
     
@@ -162,7 +170,6 @@ def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_t
             plt.plot(x[n:512+n], array[n:512+n], color='r', marker ='')
         
             fig.savefig(path + "image_{0:010}.png".format(n))
-
             #узнаем текущие время 
             current_time = time.time()
             #если прошло больше секунд чем в переменной max_time, возбуждаем исключение
@@ -189,14 +196,14 @@ def animation(array:"list"=[], path:"\\..." = "image.png", fps:"int" = 15, max_t
         
 #загрузить json
 def load_json(path:"\\..." = "cardiogram.json"):
-    print("function 'load_json' in progress ")
+    print("function 'load_json' in progress \n")
     with open(path) as json_data:
         return json.load(json_data)
 
     
 #сохранение массива в формате json
 def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
-    print("function 'save_json' in progress ")
+    print("function 'save_json' in progress \n")
     with open(path, 'w') as cardiogram:
         json.dump(array, cardiogram)
 
@@ -204,7 +211,7 @@ def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
 
 #создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
 def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const' = 200) -> "вернет словарь":
-    print("function 'systoles_separator' in progress ")
+    print("function 'systoles_separator' in progress \n")
     assert (type(length) == int), "(from systoles_separator)size should be INT, but - {}".format(size)
     systoles = []
     lengths  = []
@@ -212,7 +219,6 @@ def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const'
 
         startIndex = int(offcuts[n])
         endIndex   = int(offcuts[n + 1])
-        
         buffer = list(cardiogram[startIndex:endIndex])
             
         #считаем коэффициент скейла в процентах, на 100 не умножаем что бы получить коэффициент для умножения
@@ -228,17 +234,44 @@ def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const'
     return {"systoles":systoles, "lengths":lengths}
 
 
+#скачивает с сервера определенное количество кардиограмм, определенных размеров
+def downloader(url:"string"= r"https://", list_uploads:"links list" = str(), save_path:"string" = r"binary", from_size:"int" = 300000):
+    print("function 'downloader' in progress \n")
+    
+    #функция скачивания по ссылке и хешу
+    def threading_requests(links, names):
+                response = requests.get(link, stream=True, verify=False)
+                with open(os.path.join(save_path,name), 'wb') as f:
+                    f.write(response.content)
+                del response
+
+    #подготавливает ссылки и хеш именаб для функции скачивания 
+    links  = []
+    names  = []
+    with open(list_uploads, "r") as f:
+        for line in f:
+            info = line.split()[-5:]
+            data_size = info[0 ]
+            data_hash = info[-1]
+            if int(data_size) > from_size:
+                links.append(os.path.join(url,data_hash))
+                names.append(data_hash)
+               
+        for link, name in zip(links, names):
+            print(link)
+            #запуск потока на скачивание
+            threading.Thread(target=lambda: threading_requests(links, names)).start()
+
+
 #генерирует массивы из сокращений указанной длины 
 def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" = 0) -> "вернет словарь":
-    print("function 'systoles_generator' in progress ")
+    print("function 'systoles_generator' in progress \n")
     assert (type(size) == int), "(from systoles_generator)size should be INT, but - {}".format(size)
 
     original   = []
     synthetic  = []
 
     #возвращает массиву сокращений исходный скейл для каждого, приводит к оригинальному виду
-
-
     for n,i in enumerate(cardiogram[:size]):
         scale   = lengths[n]
         systole = [cardiogram[n]]
@@ -256,9 +289,8 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
         #возвращает исходную длину для сокращения
         systole_scaled = zoom(systole, scale).tolist()
         
-
         #фильтрует неправильно обрезанные пики, потенциально может попасть, правильная аномалия(например жел. экстрасистола)
-        if max(systole_scaled[0][-5:-1]) > systole_scaled[0][-1]: 
+        if  max(systole_scaled[0][-5:-1]) > systole_scaled[0][-1]: 
             systole_scaled = [systole_scaled[0][:-5]]
             #render(*systole_scaled)
             
@@ -270,62 +302,19 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
 
     return {"synthetic":synthetic, "original":original}
 
-#скачивает с сервера определенное количество кардиограмм, определенных размеров
-def downloader(url:"string"= r"https://", list_uploads:"links list" = str(), save_path:"string" = r"binary", from_size:"int" = 300000):
-    print("function 'downloader' in progress ")
-    
-    #функция скачивания по ссылке и хешу
-    def threading_requests(links, names):
-                response = requests.get(link, stream=True, verify=False)
-                with open(os.path.join(save_path,name), 'wb') as f:
-                    f.write(response.content)
-
-                del response
-
-    #подготавливает ссылки и хеш именаб для функции скачивания 
-    links  = []
-    names  = []
-    with open(list_uploads, "r") as f:
-        
-        for line in f:
-            info = line.split()[-5:]
-            data_size = info[0 ]
-            data_hash = info[-1]
-            if int(data_size) > from_size:
-                links.append(os.path.join(url,data_hash))
-                names.append(data_hash)
-               
-        for link, name in zip(links, names):
-            print(link)
-            #запуск потока на скачивание
-            threading.Thread(target=lambda: threading_requests(links, names)).start()
-
-
-#возвращает имя(ключ) из словаря по которому список с самым большим количеством элементов, подразумевается что больше всего нормальных сокращений 
-def get_longest_list_name(arrays:"dict" = {}) -> "принимает словарь и возвращает список в котором первое значение - имя(ключ), второе - имя(ключ длин)":
-    print("function 'get_longest_list_name' in progress ")
-    assert(type(arrays)== dict), "from 'get_longest_list_name' - you should use dict, not {}".format(type(arrays))
-    
-    longest_count = 0
-    longest_name  = ""
-    for name in arrays:
-        array_len = len(arrays[name])
-        if array_len > longest_count:
-            longest_count= array_len
-            longest_name = name
-              
-    longest_name_lengths = "length_" + longest_name.split("_")[1]
-    
-    return longest_name, longest_name_lengths
-
 
 #соединяет все кардиограммы из папки в один массив
 def put_cardiograms_together(path:"string" = r"binary", amount:"int" = 0)->"":
-    print("function 'put_together_cardiograms' in progress ")
+    print("function 'put_together_cardiograms' in progress: \n")
+    
     #создать список полных путей к каждой кардиограмме в папке
-    files = [os.path.join(path, name) for name in os.listdir(path)][:amount]
-    cardiograms = np.zeros(0)
-    for file in files:
+    names = os.listdir(path)
+    files = [os.path.join(path, name) for name in names][:amount]
+    global __cardiograms
+    __cardiograms = np.zeros(0)
+   
+    def preparing(file:"list", name:"string"):
+        print("\npreparing for {} in progress...".format(name))
         #считать с файла в numpy массив
         array = np.fromfile(file, dtype='i4', count=-1, sep='')
         #подменить "Nan" ноль
@@ -335,15 +324,24 @@ def put_cardiograms_together(path:"string" = r"binary", amount:"int" = 0)->"":
         #удалить значения шума
         y = y[y!=   0.0]
         y = y[y!=-0.078]
+        #threading.RLock().acquire()
+        global __cardiograms
+        __cardiograms = np.concatenate((__cardiograms, y), axis=0)
+        #threading.RLock().release()
 
-        cardiograms = np.concatenate((cardiograms, y), axis=0)
 
-    return cardiograms
+    for file, name in zip(files,names):
+        threading.Thread(target=lambda: preparing(file, name), name= name).start()
+ 
+    while threading.active_count() > 1:
+        time.sleep(1)
+    
+    return __cardiograms
 
 
 #поделить все сокращения по типам используя коэффициент корреляции Пирсона
 def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list" = []):
-    print("function 'systoles_separator_by_types' in progress ")
+    print("function 'systoles_separator_by_types' in progress \n")
     #создаем словарь, в который будем добавлять ключ - тип, на каждый ключ стисок подобных сокрщений
     types = {} 
     
@@ -364,7 +362,7 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
                     types[systoles_type]  = []
                     types[systoles_length]= []
                 #добавляем сокращение в словарь, ключ(name) с таким же типом 
-                types[systoles_type]  += [second[5:]]
+                types[systoles_type]  += [second[1:]]
                 #добавляем длину сокращения
                 types[systoles_length]+= [length]
                 #удалить из списка сокращений которое добавили в словарь по типу
@@ -373,65 +371,94 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
     return types
 
 
-#y = put_cardiograms_together(amount = 10)
+#возвращает имя(ключ) из словаря по которому список с самым большим количеством элементов, подразумевается что больше всего нормальных сокращений 
+def get_longest_list_name(arrays:"dict" = {}) -> "принимает словарь и возвращает список в котором первое значение - имя(ключ), второе - имя(ключ длин)":
+    print("function 'get_longest_list_name' in progress \n")
+    assert(type(arrays)== dict), "from 'get_longest_list_name' - you should use dict, not {}".format(type(arrays))
 
-##найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-#systoles_peak = peakValues(cardiogram = y)
+    systoles = []
+    lengths  = []
+    names    = []
 
-##разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-#cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
+    for name in arrays:
+        if name.split("_")[0] == "type":
+            systoles.append(arrays[name])
+            names.append(name)
 
-##возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-#systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
-
-
-#seed = random.random()
-
-#normal_systoles         = systoles_by_types[get_longest_list_name(systoles_by_types)[0]]
-#random.shuffle(normal_systoles, lambda:seed)
-
-#normal_systoles_lengths = systoles_by_types[get_longest_list_name(systoles_by_types)[1]]
-#random.shuffle(normal_systoles_lengths, lambda:seed)
-
-
-#buffer01 = systoles_generator(cardiogram = normal_systoles, lengths = normal_systoles_lengths, size = 100)
-
-#save_json(buffer01["original"], path = r"cardiogram.json")
-json_cardiogram = load_json(r"cardiogram.json")
-render(sum(json_cardiogram, []))
+        elif name.split("_")[0] == "length":
+            lengths.append( arrays[name])
+        
+        else:
+            print("NAME: {} , it is look like bug!".format(name))
+        
+   
+    return systoles, lengths, names
 
 
+if __name__ == '__main__':
+    y = put_cardiograms_together(amount = 2)
 
-##скачивает с сервера определенное количество кардиограмм, определенных размеров
-#downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
-#           list_uploads = r"list_uploads",
-#              save_path = r"binary",
-#              from_size = 1000000)
+    #найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
+    systoles_peak = peakValues(cardiogram = y)
+
+    #разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
+    cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
+
+    #возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
+    systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
+
+
+
+
+    for systole, length, name in zip(*get_longest_list_name(systoles_by_types)):
+        size = len(systole)
+        if size < 2:
+            continue
+
+        print("systole----------", name, len(systole), len(length))
+        seed = random.random()
+        random.shuffle(systole, lambda:seed)
+        random.shuffle(length,  lambda:seed)
+
+
+        buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 100)
+
+        save_json(buffer01["original"], r"cardiogram_{}_size_{}.json".format(name, size))
+        json_cardiogram = load_json(r"cardiogram_{}_size_{}.json".format(name, size))
+        render(sum(json_cardiogram, []))
+
+
+
+    ##скачивает с сервера определенное количество кардиограмм, определенных размеров
+    #downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
+    #           list_uploads = r"list_uploads",
+    #              save_path = r"binary",
+    #              from_size = 1000000)
                     
-#создать GIF анимацию из массива
-#animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
-#склейка по глубине
-#X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
-"""
-x = np.array([5,4,3,2,1])
-y = np.array([4,3,2,1,0])
-[[5 4]
- [4 3]
- [3 2]
- [2 1]
- [1 0]]
- """
+    #создать GIF анимацию из массива
+    #animation(array = sum(buffer, []), max_time = 100, path = r"C:\Users\o.zaitsev\Source\Repos\neuralNetwork\Heart-In\GIF\\")
+    #склейка по глубине
+    #X_train = np.dstack((R_max[1], R_min[1])).reshape(-1,2)
+    """
+    x = np.array([5,4,3,2,1])
+    y = np.array([4,3,2,1,0])
+    [[5 4]
+     [4 3]
+     [3 2]
+     [2 1]
+     [1 0]]
+     """
 
-#создать таблицу pandas:
-#frequency_dataframe = pd.DataFrame(X_train)
-"""
-            0      1
-_____________________
-0         0.0 -0.004
-_____________________
-1      1024.0  0.008
-_____________________
-"""
+    #создать таблицу pandas:
+    #frequency_dataframe = pd.DataFrame(X_train)
+    """
+                0      1
+    _____________________
+    0         0.0 -0.004
+    _____________________
+    1      1024.0  0.008
+    _____________________
+    """
 
-#создать матрицу рассеяния
-#grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
+    #создать матрицу рассеяния
+    #grr =  pd.plotting.scatter_matrix(frequency_dataframe, color=['#e41a1c', '#377eb8'], figsize=(10,10), s=100, alpha=0.8)
