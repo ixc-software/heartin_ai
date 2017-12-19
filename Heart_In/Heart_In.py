@@ -353,7 +353,7 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
             #находим коэффициент подобия между первым и вторым, третим.., сокрщением
             sameness = pearson_correlation(first, second)
             #если коэффициент подобия больше чем 0.85
-            if sameness > 0.80:
+            if sameness > 0.75: # <------------------------------------------------------------------------- 0.75
                 #создаем имена ключей для сокращений и длин
                 systoles_type   = "type_{}".format(name)
                 systoles_length = "length_{}".format(name)
@@ -362,7 +362,7 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
                     types[systoles_type]  = []
                     types[systoles_length]= []
                 #добавляем сокращение в словарь, ключ(name) с таким же типом 
-                types[systoles_type]  += [second[1:]]
+                types[systoles_type]  += [second[5:]] # <-------------------------------------------------- 5
                 #добавляем длину сокращения
                 types[systoles_length]+= [length]
                 #удалить из списка сокращений которое добавили в словарь по типу
@@ -396,7 +396,7 @@ def get_longest_list_name(arrays:"dict" = {}) -> "принимает слова�
 
 
 if __name__ == '__main__':
-    y = put_cardiograms_together(amount = 2)
+    y = put_cardiograms_together(amount = 50)
 
     #найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
     systoles_peak = peakValues(cardiogram = y)
@@ -412,7 +412,7 @@ if __name__ == '__main__':
 
     for systole, length, name in zip(*get_longest_list_name(systoles_by_types)):
         size = len(systole)
-        if size < 2:
+        if size < 10:
             continue
 
         print("systole----------", name, len(systole), len(length))
@@ -421,14 +421,14 @@ if __name__ == '__main__':
         random.shuffle(length,  lambda:seed)
 
 
-        buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 100)
+        buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 10000)
 
         save_json(buffer01["original"], r"cardiogram_{}_size_{}.json".format(name, size))
-        json_cardiogram = load_json(r"cardiogram_{}_size_{}.json".format(name, size))
-        render(sum(json_cardiogram, []))
+        #json_cardiogram = load_json(r"cardiogram_{}_size_{}.json".format(name, size))
+        #render(sum(json_cardiogram, []))
 
 
-
+    print("DONE!")
     ##скачивает с сервера определенное количество кардиограмм, определенных размеров
     #downloader(         url = r"https://sandbox.heartin.net/api/v1/download/cardiogram-uploads/", 
     #           list_uploads = r"list_uploads",
