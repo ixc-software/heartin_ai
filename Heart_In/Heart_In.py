@@ -245,7 +245,7 @@ def downloader(url:"string"= r"https://", list_uploads:"links list" = str(), sav
                     f.write(response.content)
                 del response
 
-    #подготавливает ссылки и хеш именаб для функции скачивания 
+    #подготавливает ссылки и хеш имена для функции скачивания 
     links  = []
     names  = []
     with open(list_uploads, "r") as f:
@@ -275,8 +275,19 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
     for n,i in enumerate(cardiogram[:size]):
         scale   = lengths[n]
         systole = [cardiogram[n]]
+        #возвращает исходную длину для сокращения
         systole_scaled = zoom(systole, scale).tolist()
+        #фильтрует неправильно обрезанные пики, потенциально может попасть, правильная аномалия(например жел. экстрасистола)
+        if  max(systole_scaled[0][-5:-1]) > systole_scaled[0][-1]: 
+            systole_scaled = [systole_scaled[0][:-5]]
+            #render(*systole_scaled)
+            
+        if max(systole_scaled[0][1:5]) > systole_scaled[0][0]:
+            systole_scaled = [systole_scaled[0][5:]]
+            #render(*systole_scaled)
+            
         original+= systole_scaled
+
     
     
     #создает синтетический набор сокращений скрещенный случайным образом друг с другом
@@ -353,7 +364,7 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
             #находим коэффициент подобия между первым и вторым, третим.., сокрщением
             sameness = pearson_correlation(first, second)
             #если коэффициент подобия больше чем 0.85
-            if sameness > 0.75: # <------------------------------------------------------------------------- 0.75
+            if sameness > 0.88: # <------------------------------------------------------------------------- 0.88
                 #создаем имена ключей для сокращений и длин
                 systoles_type   = "type_{}".format(name)
                 systoles_length = "length_{}".format(name)
@@ -362,7 +373,7 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
                     types[systoles_type]  = []
                     types[systoles_length]= []
                 #добавляем сокращение в словарь, ключ(name) с таким же типом 
-                types[systoles_type]  += [second[5:]] # <-------------------------------------------------- 5
+                types[systoles_type]  += [second] 
                 #добавляем длину сокращения
                 types[systoles_length]+= [length]
                 #удалить из списка сокращений которое добавили в словарь по типу
@@ -423,7 +434,7 @@ if __name__ == '__main__':
 
         buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 10000)
 
-        save_json(buffer01["original"], r"cardiogram_{}_size_{}.json".format(name, size))
+        save_json(buffer01["synthetic"], r"cardiogram_{}_size_{}.json".format(name, size))
         #json_cardiogram = load_json(r"cardiogram_{}_size_{}.json".format(name, size))
         #render(sum(json_cardiogram, []))
 
