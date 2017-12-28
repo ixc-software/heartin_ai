@@ -77,8 +77,8 @@ def minValues(array:"list"= [], step:"int"= 5, frequency:'Hz'= 1 ) -> "верн�
 
 
 #найти пики с условием поиска от начала пиков, возвращает пики, разметку values_x, values_y
-def peakValues(cardiogram:"list"= [], step:"int"= 185, frequency:'Hz'= 1) -> "вернет пики с позициями(идексами)":
-    print("function 'peakValues' in progress \n")
+def get_peaks(cardiogram:"list"= [], step:"int"= 185, frequency:'Hz'= 1) -> "вернет пики с позициями(идексами)":
+    print("function 'get_peaks' in progress \n")
     x  = np.linspace(0, frequency*len(cardiogram), len(cardiogram), endpoint=False)
      
     index = 0
@@ -209,10 +209,10 @@ def save_json(array:"list" = [], path:"name.json" = "cardiogram.json"):
 
         
 
-#создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "peakValues" - array[0]
-def systoles_separator(offcuts:"list"= [], cardiogram:"list"= [], length:'const' = 200) -> "вернет словарь":
-    print("function 'systoles_separator' in progress \n")
-    assert (type(length) == int), "(from systoles_separator)size should be INT, but - {}".format(size)
+#создает списки, где на каждой позиции массив с одним сокращением и его длиной, используй данные от "get_peaks" - array[0]
+def separate_by_peak(offcuts:"list"= [], cardiogram:"list"= [], length:'const' = 200) -> "вернет словарь":
+    print("function 'separate_by_peak' in progress \n")
+    assert (type(length) == int), "(from separate_by_peak)size should be INT, but - {}".format(size)
     systoles = []
     lengths  = []
     for n,i in enumerate(offcuts[:-1]):
@@ -315,7 +315,7 @@ def systoles_generator(cardiogram:"list" = [], lengths:"list" = [], size:"int" =
 
 
 #соединяет все кардиограммы из папки в один массив
-def put_cardiograms_together(path:"string" = r"binary", amount:"int" = 0)->"":
+def merge_cardiograms(path:"string" = r"binary", amount:"int" = 0)->"":
     print("function 'put_together_cardiograms' in progress: \n")
     
     #создать список полных путей к каждой кардиограмме в папке
@@ -351,8 +351,8 @@ def put_cardiograms_together(path:"string" = r"binary", amount:"int" = 0)->"":
 
 
 #поделить все сокращения по типам используя коэффициент корреляции Пирсона
-def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list" = []):
-    print("function 'systoles_separator_by_types' in progress \n")
+def separate_by_types(systoles:"lists of systoles" = [], lengths:"list" = []):
+    print("function 'separate_by_types' in progress \n")
     #создаем словарь, в который будем добавлять ключ - тип, на каждый ключ стисок подобных сокрщений
     types = {} 
     
@@ -383,9 +383,9 @@ def systoles_separator_by_types(systoles:"lists of systoles" = [], lengths:"list
 
 
 #возвращает имя(ключ) из словаря по которому список с самым большим количеством элементов, подразумевается что больше всего нормальных сокращений 
-def get_longest_list_name(arrays:"dict" = {}) -> "принимает словарь и возвращает список в котором первое значение - имя(ключ), второе - имя(ключ длин)":
-    print("function 'get_longest_list_name' in progress \n")
-    assert(type(arrays)== dict), "from 'get_longest_list_name' - you should use dict, not {}".format(type(arrays))
+def sorted_systoles(arrays:"dict" = {}) -> "принимает словарь и возвращает список в котором первое значение - имя(ключ), второе - имя(ключ длин)":
+    print("function 'sorted_systoles' in progress \n")
+    assert(type(arrays)== dict), "from 'sorted_systoles' - you should use dict, not {}".format(type(arrays))
 
     systoles = []
     lengths  = []
@@ -407,21 +407,21 @@ def get_longest_list_name(arrays:"dict" = {}) -> "принимает слова�
 
 
 if __name__ == '__main__':
-    y = put_cardiograms_together(amount = 50)
+    y = merge_cardiograms(amount = 2)
 
     #найти пики с позициями по частоте array[0] - позиции, array[1] - значения R пиков 
-    systoles_peak = peakValues(cardiogram = y)
+    systoles_peak = get_peaks(cardiogram = y)
 
-    #разбить массив на куски по сокращениям используя данные от "peakValues" - array[0], сделать их одинаковыми размерами  
-    cardiogram = systoles_separator(offcuts = systoles_peak[0], cardiogram = y, length = 200)
+    #разбить массив на куски по сокращениям используя данные от "get_peaks" - array[0], сделать их одинаковыми размерами  
+    cardiogram = separate_by_peak(offcuts = systoles_peak[0], cardiogram = y, length = 200)
 
     #возвращает словарь, на каждый тип свой ключ, по каждому ключу список сокращений одного типа 
-    systoles_by_types = systoles_separator_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
+    systoles_by_types = separate_by_types(systoles = cardiogram["systoles"], lengths = cardiogram["lengths"])  
 
 
 
 
-    for systole, length, name in zip(*get_longest_list_name(systoles_by_types)):
+    for systole, length, name in zip(*sorted_systoles(systoles_by_types)):
         size = len(systole)
         if size < 10:
             continue
@@ -432,9 +432,9 @@ if __name__ == '__main__':
         random.shuffle(length,  lambda:seed)
 
 
-        buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 10000)
+        buffer01 = systoles_generator(cardiogram = systole, lengths = length, size = 1000)
 
-        save_json(buffer01["synthetic"], r"cardiogram_{}_size_{}.json".format(name, size))
+        save_json(buffer01["original"], r"cardiogram_{}_size_{}.json".format(name, size))
         #json_cardiogram = load_json(r"cardiogram_{}_size_{}.json".format(name, size))
         #render(sum(json_cardiogram, []))
 
