@@ -18,15 +18,6 @@ import requests
 import threading
 from multiprocessing import Pool, Process
 
-
-def timer(func):
-    def wrapper(*args):
-        startTime = time.time()
-        func(*args)
-        endTime   = time.time()
-        print("func - {}, lead time :{} sec.".format(func.__name__, endTime - startTime))
-    return wrapper
-
 #нормализовать данные в пределах (-1,1) пиковое значение будет 1
 def normalized(array):
     #константное число, тип чисел в массиве
